@@ -3,8 +3,8 @@ FROM alpine:3.23 AS frontend-builder
 
 RUN apk add --no-cache 'nodejs' 'npm'
 
-COPY './static' '/build/static'
-RUN cd /build/static && npm install --omit=dev
+COPY './frontend' '/build'
+RUN cd /build && npm install --omit=dev
 
 
 # --- Stage 2: final runtime image ---
@@ -15,10 +15,10 @@ RUN apk add --no-cache \
         'py3-cryptography' 'py3-docker-py' 'py3-gitpython' \
         'docker-cli' 'docker-cli-compose'
 
-COPY './docker_compose_ui' '/app/docker_compose_ui'
-COPY './static' '/app/static'
-COPY --from=frontend-builder '/build/static/node_modules' '/app/static/node_modules'
-COPY './main.py' '/app/main.py'
+COPY './backend/docker_compose_ui' '/app/docker_compose_ui'
+COPY './frontend' '/app/static'
+COPY --from=frontend-builder '/build/node_modules' '/app/static/node_modules'
+COPY './backend/main.py' '/app/main.py'
 COPY './demo-projects' '/opt/docker-compose-projects'
 
 WORKDIR '/opt/docker-compose-projects'
