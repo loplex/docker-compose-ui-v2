@@ -20,6 +20,15 @@ def client():
     return _docker_client
 
 
+def warmup():
+    """Eagerly initialize the Docker client (call at startup in a background thread)."""
+    try:
+        client()
+        logging.info('Docker client initialized')
+    except Exception as e:
+        logging.warning('Docker client warmup failed: %s', e)
+
+
 def _run_compose(path, *args, check=True):
     """Run `docker compose` CLI in the given project directory."""
     cmd = ['docker', 'compose'] + list(args)

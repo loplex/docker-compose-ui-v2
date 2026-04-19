@@ -6,6 +6,7 @@ from json import loads
 import logging
 import os
 import pathlib
+import threading
 import traceback
 from shutil import rmtree
 import docker
@@ -14,7 +15,7 @@ from flask import Flask, jsonify, request, abort, send_file
 from werkzeug.exceptions import HTTPException
 
 from .git_repo import git_repo, git_pull, GIT_YML_PATH
-from .bridge import get_project, containers, info, get_container_from_id, get_yml_path, project_config, ps_
+from .bridge import get_project, containers, info, get_container_from_id, get_yml_path, project_config, ps_, warmup
 from .requires_auth import requires_auth, authentication_enabled, set_authentication, disable_authentication
 from .find_files import find_yml_files, get_readme_file, get_logo_file
 from .manage_project import manage
@@ -40,6 +41,11 @@ def _load_projects() -> None:
     else:
         projects = find_yml_files(YML_PATH)
     logging.info(projects)
+
+
+def _warmup_async() -> None:
+    """Warm up Docker client in a background thread (used at startup)."""
+    threading.Thread(target=warmup, daemon=True).start()
 
 
 def _get_project_with_name(name: str):
@@ -78,7 +84,7 @@ def create_app(static_path: str | None = None) -> Flask:
     app = Flask(__name__, static_url_path=STATIC_URL_PATH, static_folder=str(resolved))
     app.route = _prefix_route(app.route, prefix=STATIC_URL_PATH)
 
-    _load_projects()
+    _warmup_async()
 
     # ------------------------------------------------------------------
     # Routes
