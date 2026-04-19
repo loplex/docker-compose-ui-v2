@@ -19,7 +19,7 @@ def find_yml_files(path):
 
 def get_readme_file(path):
     """
-    find case insensitive readme.md in path and return the contents
+    find case-insensitive readme.md in path and return the contents
     """
 
     readme = None
@@ -35,16 +35,11 @@ def get_readme_file(path):
 
 def get_logo_file(path):
     """
-    find case insensitive logo.png in path and return the contents
+    find case-insensitive logo.png in path and return the full file path
     """
-
-    logo = None
 
     for file in os.listdir(path):
         if file.lower() == "logo.png" and os.path.isfile(os.path.join(path, file)):
-            file = open(os.path.join(path, file))
-            logo = file.read()
-            file.close()
-            break
+            return os.path.join(path, file)
 
-    return logo
+    return None

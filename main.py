@@ -7,10 +7,10 @@ import logging
 import os
 import traceback
 from shutil import rmtree
-from compose.service import ImageType, BuildAction
 import docker
 import requests
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, send_file
+from werkzeug.exceptions import HTTPException
 from scripts.git_repo import git_pull, git_repo, GIT_YML_PATH
 from scripts.bridge import ps_, get_project, get_container_from_id, get_yml_path, containers, project_config, info
 from scripts.find_files import find_yml_files, get_readme_file, get_logo_file
@@ -137,7 +137,7 @@ def get_project_logo(name):
     logo = get_logo_file(path)
     if logo is None:
         abort(404)
-    return logo
+    return send_file(logo, mimetype='image/png')
 
 
 @app.route(API_V1 + "projects/<name>/<container_id>", methods=['GET'])
@@ -207,7 +207,7 @@ def up_():
     req = loads(request.data)
     name = req["id"]
     service_names = req.get('service_names', None)
-    do_build = BuildAction.force if req.get('do_build', False) else BuildAction.none
+    do_build = 'force' if req.get('do_build', False) else 'none'
 
     container_list = get_project_with_name(name).up(
         service_names=service_names,
@@ -348,7 +348,7 @@ def down():
     docker-compose down
     """
     name = loads(request.data)["id"]
-    get_project_with_name(name).down(ImageType.none, None)
+    get_project_with_name(name).down()
     return jsonify(command='down')
 
 @app.route(API_V1 + "restart", methods=['POST'])
@@ -422,7 +422,7 @@ def set_host():
     """
     new_host = loads(request.data)["id"]
     if new_host is None:
-        if os.environ.has_key('DOCKER_HOST'):
+        if 'DOCKER_HOST' in os.environ:
             del os.environ['DOCKER_HOST']
         return jsonify()
     else:
@@ -484,6 +484,8 @@ def handle_generic_error(err):
     """
     default exception handler
     """
+    if isinstance(err, HTTPException):
+        return err
     traceback.print_exc()
     return 'error: ' + str(err), 500
 
