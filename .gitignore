@@ -65,4 +65,7 @@ target/
 .vscode/
 
 # Intellij
-.idea
+.idea/
+
+# uv / virtualenv
+.venv/
