@@ -8,6 +8,7 @@ import json
 from os.path import normpath, join, exists
 
 import docker
+import docker.errors
 
 _docker_client = None
 
@@ -25,7 +26,7 @@ def warmup():
     try:
         client()
         logging.info('Docker client initialized')
-    except Exception as e:
+    except docker.errors.DockerException as e:
         logging.warning('Docker client warmup failed: %s', e)
 
 
@@ -43,7 +44,7 @@ def info():
         result = subprocess.run(['docker', 'compose', 'version', '--short'],
                                 capture_output=True, text=True)
         compose_version = result.stdout.strip()
-    except Exception:
+    except OSError:
         compose_version = 'unknown'
     return dict(compose=compose_version,
                 info=docker_info['ServerVersion'],
@@ -92,7 +93,12 @@ class _ProjectProxy:
         return self.containers(stopped=False)
 
     def down(self, image_type=None, timeout=None):
-        _run_compose(self.path, 'down')
+        args = ['down']
+        if image_type:
+            args += ['--rmi', image_type]
+        if timeout is not None:
+            args += ['--timeout', str(timeout)]
+        _run_compose(self.path, *args)
 
     def kill(self):
         _run_compose(self.path, 'kill')
@@ -243,7 +249,7 @@ class _ServiceProxy:
             cfg = json.loads(result.stdout)
             svc = cfg.get('services', {}).get(self._name, {})
             return {'command': svc.get('command')}
-        except Exception:
+        except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError):
             return {}
 
     def create_container(self, one_off=False, command=None):
@@ -300,7 +306,7 @@ def get_volumes(container):
             for m in mounts]
 
 
-def get_container_from_id(docker_api_client, container_id):
+def get_container_from_id(container_id):
     """return a _ContainerProxy for the given container id"""
     raw = client().containers.get(container_id)
     return _ContainerProxy(raw)
@@ -316,7 +322,7 @@ def project_config(path):
     if result.returncode == 0:
         try:
             cfg = json.loads(result.stdout)
-        except Exception:
+        except json.JSONDecodeError:
             pass
 
     version = cfg.get('version', '')

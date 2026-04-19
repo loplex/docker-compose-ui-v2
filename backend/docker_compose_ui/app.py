@@ -10,6 +10,7 @@ import threading
 import traceback
 from shutil import rmtree
 import docker
+import docker.errors
 import requests
 from flask import Flask, jsonify, request, abort, send_file
 from werkzeug.exceptions import HTTPException
@@ -143,9 +144,12 @@ def create_app(static_path: str | None = None) -> Flask:
             return jsonify(
                 yml=data_file.read(),
                 env=env,
-                config=config._replace(
-                    config_version=str(config.config_version),
+                config=dict(
                     version=str(config.version),
+                    config_version=str(config.config_version),
+                    services=config.services,
+                    volumes=config.volumes,
+                    networks=config.networks,
                 ),
             )
 
@@ -169,8 +173,8 @@ def create_app(static_path: str | None = None) -> Flask:
     @app.route(API_V1 + "projects/<name>/<container_id>", methods=['GET'])
     def project_container(name, container_id):
         """Get container details."""
-        project = _get_project_with_name(name)
-        container = get_container_from_id(project.client, container_id)
+        _get_project_with_name(name)  # validates project exists
+        container = get_container_from_id(container_id)
         return jsonify(
             id=container.id,
             short_id=container.short_id,
@@ -275,6 +279,8 @@ def create_app(static_path: str | None = None) -> Flask:
     @app.route(API_V1 + "search", methods=['POST'])
     def search():
         """Search for a project on a docker-compose registry."""
+        if not COMPOSE_REGISTRY:
+            return 'DOCKER_COMPOSE_REGISTRY is not configured', 503
         query = loads(request.data)['query']
         response = requests.get(
             COMPOSE_REGISTRY + '/api/v1/search',
@@ -289,6 +295,8 @@ def create_app(static_path: str | None = None) -> Flask:
     @app.route(API_V1 + "yml", methods=['POST'])
     def yml():
         """Get yml content from a docker-compose registry."""
+        if not COMPOSE_REGISTRY:
+            return 'DOCKER_COMPOSE_REGISTRY is not configured', 503
         item_id = loads(request.data)['id']
         response = requests.get(
             COMPOSE_REGISTRY + '/api/v1/yml',
@@ -351,8 +359,8 @@ def create_app(static_path: str | None = None) -> Flask:
     @app.route(API_V1 + "logs/<name>/<container_id>/<int:limit>", methods=['GET'])
     def container_logs(name, container_id, limit):
         """docker-compose logs of a specific container."""
-        project = _get_project_with_name(name)
-        container = get_container_from_id(project.client, container_id)
+        _get_project_with_name(name)  # validates project exists
+        container = get_container_from_id(container_id)
         lines = container.logs(timestamps=True, tail=limit).decode().split('\n')
         return jsonify(logs=lines)
 
