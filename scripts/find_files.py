@@ -2,36 +2,40 @@
 find docker-compose.yml files
 """
 
-import fnmatch
 import os
+
+COMPOSE_FILENAMES = (
+    'compose.yaml',
+    'compose.yml',
+    'docker-compose.yaml',
+    'docker-compose.yml',
+)
 
 def find_yml_files(path):
     """
-    find docker-compose.yml files in path
+    find docker-compose files in path
     """
+
     matches = {}
-    for root, _, filenames in os.walk(path, followlinks=True):
-        for _ in set().union(fnmatch.filter(filenames, 'docker-compose.yml'), fnmatch.filter(filenames, 'docker-compose.yaml')):
+    for root, dirs, filenames in os.walk(path, followlinks=True):
+        filenames_lower = {f.lower() for f in filenames}
+        if filenames_lower.intersection(COMPOSE_FILENAMES):
             key = root.split('/')[-1]
-            matches[key] = os.path.join(os.getcwd(), root)
+            matches[key] = os.path.join(os.getcwd(), str(root))
+
     return matches
 
 
 def get_readme_file(path):
     """
-    find case-insensitive readme.md in path and return the contents
+    find case-insensitive readme.md in path and return the full file path
     """
-
-    readme = None
 
     for file in os.listdir(path):
         if file.lower() == "readme.md" and os.path.isfile(os.path.join(path, file)):
-            file = open(os.path.join(path, file))
-            readme = file.read()
-            file.close()
-            break
+            return os.path.join(path, file)
 
-    return readme
+    return None
 
 def get_logo_file(path):
     """

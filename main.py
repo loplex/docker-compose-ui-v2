@@ -126,7 +126,11 @@ def get_project_readme(name):
     get README.md or readme.md if available
     """
     path = projects[name]
-    return jsonify(readme=get_readme_file(path))
+    readme_path = get_readme_file(path)
+    if readme_path is None:
+        return jsonify(readme=None)
+    with open(readme_path, encoding='utf-8') as f:
+        return jsonify(readme=f.read())
 
 @app.route(API_V1 + "projects/logo/<name>", methods=['GET'])
 def get_project_logo(name):
