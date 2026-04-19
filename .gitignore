@@ -69,3 +69,6 @@ target/
 
 # uv / virtualenv
 .venv/
+
+# NPM
+node_modules/

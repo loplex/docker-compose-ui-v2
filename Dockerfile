@@ -1,3 +1,13 @@
+# --- Stage 1: install frontend dependencies ---
+FROM alpine:3.23 AS frontend-builder
+
+RUN apk add --no-cache 'nodejs' 'npm'
+
+COPY './static' '/build/static'
+RUN cd /build/static && npm install --omit=dev
+
+
+# --- Stage 2: final runtime image ---
 FROM alpine:3.23
 
 RUN apk add --no-cache \
@@ -7,6 +17,7 @@ RUN apk add --no-cache \
 
 COPY './docker_compose_ui' '/app/docker_compose_ui'
 COPY './static' '/app/static'
+COPY --from=frontend-builder '/build/static/node_modules' '/app/static/node_modules'
 COPY './main.py' '/app/main.py'
 COPY './demo-projects' '/opt/docker-compose-projects'
 
